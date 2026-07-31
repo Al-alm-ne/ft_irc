@@ -1,19 +1,27 @@
 # ft_irc
 
+A minimal IRC server implementation following the RFC 1459 specification and the requirements of the 42 school project.  
+Supports basic user registration, channel management, messaging, and channel modes.
+
+---
+
 ## Supported Commands
 
-The server currently registers the following IRC commands in [src/CommandHandler.cpp](src/CommandHandler.cpp): `PASS`, `USER`, `NICK`, `JOIN`, `PRIVMSG`, `QUIT`, `PART`, `TOPIC`, `INVITE`, `KICK`, and `MODE`.
+The server currently registers the following IRC commands:
 
-Commands outside this list are treated as unknown and should return `421`.
+`PASS`, `USER`, `NICK`, `JOIN`, `PRIVMSG`, `QUIT`, `PART`, `TOPIC`, `INVITE`, `KICK`, and `MODE`.
+
+Commands outside this list are treated as unknown and must return numeric `421`.
+
+---
 
 ## How to Run
 
-Build and start the server with:
+Build and start the server:
 
 ```bash
 make
 ./ircserv <port> <password>
-```
 
 Example:
 
@@ -31,7 +39,6 @@ nc localhost 6667
 
 Start with the registration sequence below:
 
-```text
 PASS secret
 NICK alice
 USER alice 0 * :Alice Liddell
@@ -62,6 +69,58 @@ After that, test the commands below one by one.
 | `MODE` | `MODE #general` | Query current modes, then test changes such as `+i`, `+k`, `+l`, `+o`, and `+t`. | Query returns `324`; unknown mode flags return `472`. |
 
 | `QUIT` | `QUIT :bye` | Send it at any time and confirm the socket closes cleanly. | Ends the session safely. |
+
+## MODE Command — Channel Modes (i, t, k, o, l)
+The server implements the following channel modes:
+
+| Mode | Meaning | Parameter? | Description |
+| --- | --- | --- | --- |
+| ``i`` | Invite-only | No | Only invited users may join. |
+| ``t`` | Protected topic | No | Only operators may change the topic. |
+| ``k`` | Channel key | Yes (``+k ``<key>``) | Requires a password to join. |
+| ``o`` | Operator | Yes (``+o ``<nick>``) | Grants/removes operator privileges. |
+| ``l`` | User limit | Yes (``+l ``<number>``) | Sets maximum number of users. |
+
+## Syntax
+MODE #channel <+|-><modes> [parameters...]
+
+## Querying Current Modes
+MODE #general
+
+Expected reply:
+324 <nick> #general +itkl <key> <limit>
+
+## Examples
+Invite-only:
+MODE #general +i
+MODE #general -i
+
+Protected topic:MODE
+MODE #general +t
+MODE #general -t
+
+Channel key:
+MODE #general +k secret123
+MODE #general -k
+
+Operator:
+MODE #general +o alice
+MODE #general -o alice
+
+User limit:
+MODE #general +l 20
+MODE #general -l
+
+## NOTES
+-> Only channel operators may change modes.
+
+-> +k and +l require parameters.
+
+-> -k and -l do not take parameters.
+
+-> +o and -o always require a nickname.
+
+-> Unknown mode flags must return numeric 472.
 
 ## Quick Validation Checklist
 

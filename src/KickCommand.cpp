@@ -6,7 +6,7 @@
 /*   By: alde-alm <alde-alm@student.42porto.com>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/07/15 10:16:01 by ggoncalv          #+#    #+#             */
-/*   Updated: 2026/07/31 00:26:43 by alde-alm         ###   ########.fr       */
+/*   Updated: 2026/07/31 12:59:50 by alde-alm         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,7 +37,7 @@ std::vector<std::string> KickCommand::execute(Client &client, const ParsedComman
 
     std::string channelName = cmd.args[0];
     std::string targetNick = cmd.args[1];
-    std::string reason = (cmd.args.size() > 2) ? cmd.args[2] : "Kicked by operator";
+    std::string reason = (cmd.args.size() > 2) ? cmd.args[2] : BGRN "Kicked by operator" NC;
 
     Channel *channel = _server.getChannel(channelName);
     if (!channel || !channel->isMember(&client))
