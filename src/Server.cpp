@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ggoncalv <ggoncalv@student.42porto.com>    +#+  +:+       +#+        */
+/*   By: alde-alm <alde-alm@student.42porto.com>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/07/01 12:56:39 by alde-alm          #+#    #+#             */
-/*   Updated: 2026/07/16 10:47:57 by ggoncalv         ###   ########.fr       */
+/*   Updated: 2026/07/31 01:39:56 by alde-alm         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,12 +15,21 @@
 
 bool Server::_isRunning = true;
 
+/**
+ * @brief Constructs the server and initializes its listening socket.
+ * @param port The TCP port to bind and listen on.
+ * @param password The shared password required for client registration.
+ */
 Server::Server(int port, const std::string &password)
 	: _port(port), _password(password), _serverFd(-1), _name(SERVER_NAME)
 {
 	initSocket();
 }
 
+/**
+ * @brief Releases all server-owned resources.
+ * Closes the listening socket, disconnects remaining clients, and frees channels.
+ */
 Server::~Server()
 {
 	if (_serverFd != -1)
@@ -31,13 +40,17 @@ Server::~Server()
 		close(it->first);  // Socket's fd
 		delete it->second; // Client's object pointer
 	}
-	std::map<std::string, Channel*>::iterator it_chan;
+	std::map<std::string, Channel *>::iterator it_chan;
 	for (it_chan = _channels.begin(); it_chan != _channels.end(); ++it_chan)
 	{
 		delete it_chan->second;
 	}
 }
 
+/**
+ * @brief Creates, configures, binds, and starts the listening socket.
+ * Initializes the non-blocking server socket and registers it in the poller.
+ */
 void Server::initSocket()
 {
 	_serverFd = socket(AF_INET, SOCK_STREAM, 0); // TCP (SOCK_STREAM) IPv4 (AF_INET), 0 = default protocol
@@ -65,7 +78,7 @@ void Server::initSocket()
 		throw std::runtime_error("listen failed");
 	// Add the server socket FD to the event loop
 	poller.add(_serverFd, POLLIN); // (POLLIN) - notify when there's a new connection
-	std::cout << BGRN "Server listening on port " << _port << NC << std::endl;
+	std::cout << BCYN "Server listening on port " << _port << NC << std::endl;
 }
 
 /**
@@ -73,11 +86,16 @@ void Server::initSocket()
  * Sets the static running flag to false, allowing the main poll loop to terminate naturally.
  * @param signum The integer code of the intercepted signal.
  */
-void Server::signalHandler(int signum) {
-    std::cout << BMAG"\n[Signal " << signum << "] Graceful shutdown initiated. Closing ft_irc..." NC << std::endl;
-    Server::_isRunning = false;
+void Server::signalHandler(int signum)
+{
+	std::cout << BMAG "\n[Signal " << signum << "] Graceful shutdown initiated. Closing ft_irc..." NC << std::endl;
+	Server::_isRunning = false;
 }
 
+/**
+ * @brief Runs the main IRC event loop.
+ * Accepts new clients, dispatches readable and writable events, and handles disconnects.
+ */
 void Server::runIrc()
 {
 	Parser parser;
@@ -105,6 +123,10 @@ void Server::runIrc()
 	}
 }
 
+/**
+ * @brief Accepts all pending incoming client connections.
+ * Creates a Client object for each connection, sets it non-blocking, and registers it in the poller.
+ */
 void Server::acceptNewClient()
 {
 	while (true)
@@ -130,6 +152,12 @@ void Server::acceptNewClient()
 	}
 }
 
+/**
+ * @brief Reads incoming data from a client and dispatches complete IRC lines.
+ * @param fd The connected client socket file descriptor.
+ * @param parser The parser used to convert raw input into structured commands.
+ * @param handler The command dispatcher used to execute parsed IRC commands.
+ */
 void Server::handleRead(int fd, Parser &parser, CommandHandler &handler)
 {
 	Client *client = _clients[fd];
@@ -148,31 +176,34 @@ void Server::handleRead(int fd, Parser &parser, CommandHandler &handler)
 	{
 		std::string line = client->extractLine();
 
-		//========= Conection with B ============
-		ParsedCommand cmd = parser.parse(line); // Component B
+		//========= Connection with component B ============
+		ParsedCommand cmd = parser.parse(line);
 		std::vector<std::string> replies = handler.execute(*client, cmd);
-		// Returnes a complete formatted response.
+		// Returns a complete formatted response.
 		//=======================================
 
-		/*for (size_t i = 0; i < replies.size(); ++i)
-			client->queueMessage(replies[i]);
-		poller.enable(fd, POLLOUT);*/
-		
-		// 1. Guarda as respostas no buffer de quem enviou o comando
-		for (size_t i = 0; i < replies.size(); ++i) {
+		// 1. Store the replies in the buffer of the client that sent the command.
+		for (size_t i = 0; i < replies.size(); ++i)
+		{
 			client->queueMessage(replies[i]);
 		}
-		
-		// 2. NOVO: Varre TODOS os clientes e ativa o POLLOUT se tiverem algo para receber
-		std::map<int, Client*>::iterator it;
-		for (it = _clients.begin(); it != _clients.end(); ++it) {
-			if (it->second->hasDataToSend()) {
+
+		// 2. Iterate over ALL clients and enable POLLOUT if they have data to receive.
+		std::map<int, Client *>::iterator it;
+		for (it = _clients.begin(); it != _clients.end(); ++it)
+		{
+			if (it->second->hasDataToSend())
+			{
 				poller.enable(it->first, POLLOUT);
 			}
 		}
 	}
 }
 
+/**
+ * @brief Writes queued outbound data to a client socket.
+ * @param fd The connected client socket file descriptor.
+ */
 void Server::handleWrite(int fd)
 {
 	Client *client = _clients[fd];
@@ -192,11 +223,12 @@ void Server::handleWrite(int fd)
 	out.erase(0, bytes);
 	if (out.empty())
 		poller.disable(fd, POLLOUT);
-	
-	// Verifica se o cliente pediu para sair (QUIT)
-    if (client->isPendingDisconnect()) {
-       	disconnectClient(fd);
-    }
+
+	// Check whether the client requested to quit (QUIT)
+	if (client->isPendingDisconnect())
+	{
+		disconnectClient(fd);
+	}
 }
 
 /**
@@ -204,48 +236,67 @@ void Server::handleWrite(int fd)
  * Broadcasts the QUIT message to peers and safely triggers garbage collection for empty channels.
  * @param client Pointer to the client being disconnected.
  */
-void Server::removeClientFromAllChannels(Client* client) {
-    std::map<std::string, Channel*>::iterator it = _channels.begin();
-    
-    while (it != _channels.end()) {
-        Channel* chan = it->second;
-        if (chan->isMember(client)) {
-            chan->broadcast(":" + client->getPrefix() + " QUIT :Client disconnected", NULL);
-            chan->removeMember(client);
-            chan->removeOperator(client);
-        }
-        
-        if (chan->isEmpty()) {
-            delete chan;
-            std::map<std::string, Channel*>::iterator toErase = it;
-            ++it;
-            _channels.erase(toErase);
-        } else {
-            ++it;
-        }
-    }
+void Server::removeClientFromAllChannels(Client *client)
+{
+	std::map<std::string, Channel *>::iterator it = _channels.begin();
+
+	while (it != _channels.end())
+	{
+		Channel *chan = it->second;
+		if (chan->isMember(client))
+		{
+			chan->broadcast(BMAG ":" + client->getPrefix() + " QUIT :Client disconnected" NC, NULL);
+			chan->removeMember(client);
+			chan->removeOperator(client);
+		}
+
+		if (chan->isEmpty())
+		{
+			delete chan;
+			std::map<std::string, Channel *>::iterator toErase = it;
+			++it;
+			_channels.erase(toErase);
+		}
+		else
+		{
+			++it;
+		}
+	}
 }
 
 /**
- * @brief disconnects a client by closing I/O streams and delegating domain cleanup.
+ * @brief Disconnects a client, removes it from all channels, and closes its socket.
  * @param fd The file descriptor of the client to disconnect.
  */
-void Server::disconnectClient(int fd) {
-    std::cout << BMAG "Disconnecting client fd=" << fd << NC << std::endl;
-    
-    std::map<int, Client*>::iterator it = _clients.find(fd);
-    if (it != _clients.end()) {
-        Client* client = it->second;
-        poller.remove(fd);
-        removeClientFromAllChannels(client);
-        delete client;
-        _clients.erase(it);
-    }
-    close(fd);
+void Server::disconnectClient(int fd)
+{
+	std::cout << BMAG "Disconnecting client fd=" << fd << NC << std::endl;
+
+	std::map<int, Client *>::iterator it = _clients.find(fd);
+	if (it != _clients.end())
+	{
+		Client *client = it->second;
+		poller.remove(fd);
+		removeClientFromAllChannels(client);
+		delete client;
+		_clients.erase(it);
+	}
+	close(fd);
+
+	if (_clients.empty())
+	{
+		std::cout << BMAG "[Server] Last client disconnected. Shutting down." NC << std::endl;
+		Server::_isRunning = false;
+	}
 }
 
-const std::string& Server::getPassword() const {
-    return _password;
+/**
+ * @brief Retrieves the server password used during client registration.
+ * @return The configured server password.
+ */
+const std::string &Server::getPassword() const
+{
+	return _password;
 }
 
 /**
@@ -253,30 +304,51 @@ const std::string& Server::getPassword() const {
  * @param nickname The nickname to search for.
  * @return true if the nickname is found, false otherwise.
  */
-bool Server::isNicknameInUse(const std::string& nickname) const {
-    std::map<int, Client*>::const_iterator it;
-    for (it = _clients.begin(); it != _clients.end(); ++it) {
-        if (it->second->getNickname() == nickname) {
-            return true;
-        }
-    }
-    return false;
+bool Server::isNicknameInUse(const std::string &nickname) const
+{
+	std::map<int, Client *>::const_iterator it;
+	for (it = _clients.begin(); it != _clients.end(); ++it)
+	{
+		if (it->second->getNickname() == nickname)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
-Channel* Server::getChannel(const std::string& name) {
-    std::map<std::string, Channel*>::iterator it = _channels.find(name);
-    if (it != _channels.end()) {
-        return it->second;
-    }
-    return NULL;
+/**
+ * @brief Retrieves a channel by name from the server registry.
+ * @param name The exact channel name to look up.
+ * @return Pointer to the channel if found, or NULL otherwise.
+ */
+Channel *Server::getChannel(const std::string &name)
+{
+	std::map<std::string, Channel *>::iterator it = _channels.find(name);
+	if (it != _channels.end())
+	{
+		return it->second;
+	}
+	return NULL;
 }
 
-void Server::addChannel(const std::string& name, Channel* channel) {
-    _channels[name] = channel;
+/**
+ * @brief Registers a channel in the server registry.
+ * @param name The channel name used as the lookup key.
+ * @param channel Pointer to the channel instance to store.
+ */
+void Server::addChannel(const std::string &name, Channel *channel)
+{
+	_channels[name] = channel;
 }
 
-const std::string& Server::getName() const {
-    return this->_name;
+/**
+ * @brief Retrieves the IRC server name used in numeric replies.
+ * @return The server name string.
+ */
+const std::string &Server::getName() const
+{
+	return this->_name;
 }
 
 /**
@@ -287,8 +359,9 @@ const std::string& Server::getName() const {
  * @param msg The human-readable string message.
  * @return The formatted string ready to be queued for the client.
  */
-std::string Server::buildReply(const std::string& code, const std::string& target, const std::string& msg) const {
-    return ":" + _name + " " + code + " " + target + " :" + msg;
+std::string Server::buildReply(const std::string &code, const std::string &target, const std::string &msg) const
+{
+	return ":" + _name + " " + code + " " + target + " :" + msg;
 }
 
 /**
@@ -300,8 +373,9 @@ std::string Server::buildReply(const std::string& code, const std::string& targe
  * @param msg The final human-readable string message.
  * @return The formatted string.
  */
-std::string Server::buildReply(const std::string& code, const std::string& target, const std::string& extraInfo, const std::string& msg) const {
-    return ":" + _name + " " + code + " " + target + " " + extraInfo + " :" + msg;
+std::string Server::buildReply(const std::string &code, const std::string &target, const std::string &extraInfo, const std::string &msg) const
+{
+	return ":" + _name + " " + code + " " + target + " " + extraInfo + " :" + msg;
 }
 
 /**
@@ -309,25 +383,29 @@ std::string Server::buildReply(const std::string& code, const std::string& targe
  * @param nickname The exact nickname to search for.
  * @return Pointer to the Client, or NULL if not found.
  */
-Client* Server::getClientByNickname(const std::string& nickname) {
-    std::map<int, Client*>::iterator it;
-    for (it = _clients.begin(); it != _clients.end(); ++it) {
-        if (it->second->getNickname() == nickname) {
-            return it->second;
-        }
-    }
-    return NULL;
+Client *Server::getClientByNickname(const std::string &nickname)
+{
+	std::map<int, Client *>::iterator it;
+	for (it = _clients.begin(); it != _clients.end(); ++it)
+	{
+		if (it->second->getNickname() == nickname)
+		{
+			return it->second;
+		}
+	}
+	return NULL;
 }
 
 /**
  * @brief Safely deletes a channel from heap memory and removes it from the server's tracking map.
  * @param name The exact name of the channel to remove.
  */
-void Server::removeChannel(const std::string& name) {
-    std::map<std::string, Channel*>::iterator it = _channels.find(name);
-    if (it != _channels.end()) {
-        delete it->second; // Prevents memory leaks
-        _channels.erase(it);
-    }
+void Server::removeChannel(const std::string &name)
+{
+	std::map<std::string, Channel *>::iterator it = _channels.find(name);
+	if (it != _channels.end())
+	{
+		delete it->second; // Prevents memory leaks
+		_channels.erase(it);
+	}
 }
-

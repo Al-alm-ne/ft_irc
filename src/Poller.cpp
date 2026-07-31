@@ -14,10 +14,21 @@
 #include <cerrno>
 #include <stdexcept>
 
+/**
+ * @brief Creates an empty poller wrapper.
+ */
 Poller::Poller() {}
 
+/**
+ * @brief Destroys the poller wrapper.
+ */
 Poller::~Poller() {}
 
+/**
+ * @brief Registers a file descriptor to be monitored by poll().
+ * @param fd The file descriptor to track.
+ * @param events The poll events to watch for.
+ */
 void Poller::add(int fd, short events)
 {
 	struct pollfd pfd;
@@ -27,6 +38,10 @@ void Poller::add(int fd, short events)
 	_fds.push_back(pfd);
 }
 
+/**
+ * @brief Stops monitoring a file descriptor.
+ * @param fd The file descriptor to remove.
+ */
 void Poller::remove(int fd)
 {
 	for (std::vector<pollfd>::iterator it = _fds.begin(); it != _fds.end(); ++it)
@@ -39,6 +54,11 @@ void Poller::remove(int fd)
 	}
 }
 
+/**
+ * @brief Enables an additional event flag for a monitored file descriptor.
+ * @param fd The file descriptor to update.
+ * @param event The event flag to add.
+ */
 void Poller::enable(int fd, short event)
 {
 	for (size_t i = 0; i < _fds.size(); ++i)
@@ -51,6 +71,11 @@ void Poller::enable(int fd, short event)
 	}
 }
 
+/**
+ * @brief Disables an event flag for a monitored file descriptor.
+ * @param fd The file descriptor to update.
+ * @param event The event flag to remove.
+ */
 void Poller::disable(int fd, short event)
 {
 	for (size_t i = 0; i < _fds.size(); ++i)
@@ -63,7 +88,11 @@ void Poller::disable(int fd, short event)
 	}
 }
 
-int Poller::wait() // Wait until some FD has an event
+/**
+ * @brief Blocks until one of the monitored file descriptors becomes ready.
+ * @return The return value from poll(), or 0 if there are no descriptors or the call was interrupted.
+ */
+int Poller::wait()
 {
 	if (_fds.empty())
 		return 0;
@@ -77,11 +106,20 @@ int Poller::wait() // Wait until some FD has an event
 	return result;
 }
 
+/**
+ * @brief Provides mutable access to a monitored pollfd entry.
+ * @param i Index of the pollfd entry.
+ * @return A reference to the requested pollfd structure.
+ */
 pollfd &Poller::operator[](size_t i)
 {
 	return _fds[i];
 }
 
+/**
+ * @brief Returns the number of monitored file descriptors.
+ * @return The current number of tracked pollfd entries.
+ */
 size_t Poller::size() const
 {
 	return _fds.size();
