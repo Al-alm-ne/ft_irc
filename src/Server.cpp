@@ -6,7 +6,7 @@
 /*   By: alde-alm <alde-alm@student.42porto.com>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/07/01 12:56:39 by alde-alm          #+#    #+#             */
-/*   Updated: 2026/07/31 01:39:56 by alde-alm         ###   ########.fr       */
+/*   Updated: 2026/07/31 15:51:20 by alde-alm         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -50,6 +50,7 @@ Server::~Server()
 /**
  * @brief Creates, configures, binds, and starts the listening socket.
  * Initializes the non-blocking server socket and registers it in the poller.
+ * fcntl enable accept, recv and send operations to never freeze. Allow the server to be controlled only by poll(). Enable serving multiple clients simultaneosly.
  */
 void Server::initSocket()
 {
@@ -57,7 +58,7 @@ void Server::initSocket()
 	if (_serverFd < 0)
 		throw std::runtime_error("Can't creat a socket!");
 	// Syscall that sets the properties of a file descriptor. Makes the socket non-blocking
-	if (fcntl(_serverFd, F_SETFL, O_NONBLOCK) < 0) // Set FD flags (F_SETFL) to include O_NONBLOCK
+	if (fcntl(_serverFd, F_SETFL, O_NONBLOCK) < 0)
 		throw std::runtime_error("Fcntl failed");
 	int opt = 1; // Enable the option
 	// Syscall that sets special socket options.
