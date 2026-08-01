@@ -6,7 +6,7 @@
 /*   By: alde-alm <alde-alm@student.42porto.com>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/07/11 15:23:52 by ggoncalv          #+#    #+#             */
-/*   Updated: 2026/07/31 14:26:10 by alde-alm         ###   ########.fr       */
+/*   Updated: 2026/08/01 22:41:56 by alde-alm         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -75,7 +75,7 @@ void PartCommand::processPart(Client &client, Channel *channel, const std::strin
     channel->removeMember(&client);
     channel->removeOperator(&client);
 
-    std::cout << "[PartCommand] " << client.getNickname() << " left " << channelName << std::endl;
+    std::cout << BMAG "[PartCommand] " << client.getNickname() << " left " << channelName << NC << std::endl;
 
     if (channel->isEmpty())
     {
