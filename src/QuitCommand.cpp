@@ -30,7 +30,7 @@ std::vector<std::string> QuitCommand::execute(Client &client, const ParsedComman
     std::vector<std::string> replies;
 
     std::string reason = cmd.args.empty() ? "Leaving" : cmd.args[0];
-    std::string errorMsg = BRED "ERROR :Closing Link: " + client.getNickname() + " (" + reason + ")" NC;
+    std::string errorMsg = BRED "Closing Link: " + client.getNickname() + " (" + reason + ")" NC;
     client.queueMessage(errorMsg);
     client.setPendingDisconnect(true);
 

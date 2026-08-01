@@ -284,11 +284,11 @@ void Server::disconnectClient(int fd)
 	}
 	close(fd);
 
-	if (_clients.empty())
-	{
-		std::cout << BMAG "[Server] Last client disconnected. Shutting down." NC << std::endl;
-		Server::_isRunning = false;
-	}
+	// if (_clients.empty())
+	// {
+	// 	std::cout << BMAG "[Server] Last client disconnected. Shutting down." NC << std::endl;
+	// 	Server::_isRunning = false;
+	// }
 }
 
 /**
