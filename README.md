@@ -58,8 +58,9 @@ Classic references and project background material:
 
 AI usage in this project:
 
-- AI was used to review the repository structure, summarize the build and execution flow.
-- AI was also used to help rewrite this README so it matches the required 42 format and includes practical run and validation instructions.
+- AI helped to clarify the subject and documentation to a level a beginner could understand.
+- AI was also used to review the repository structure, summarize the build and execution flow.
+- AI was also used to assist on techinical expalnations and suggest some solutions for sections that posed significant dificulties.
 
 ## Features
 
